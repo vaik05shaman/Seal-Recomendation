@@ -1,8 +1,9 @@
+import DashBord from "./pages/DashBord";
 
 function App() {
   return (
-    <div className=" text-yellow-400 bg-zinc-500 text-center">
-      Hello world! <br />
+    <div>
+    <DashBord/>
     </div>
   );
 }
