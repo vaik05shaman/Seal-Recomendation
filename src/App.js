@@ -1,15 +1,11 @@
 import React from 'react';
 import Header from './components/Header';
 import Footer from './components/Footer';
+import DashBord from './pages/DashBord';
 function App() {
   return (
     <div>
-   
-    <Header />
-    <h1 className="text-3xl font-bold underline">
-      Hello world!
-    </h1>
-    <Footer />
+    <DashBord />
     </div>
   );
 }
