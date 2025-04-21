@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import Sidebar from '../components/Sidebar';
 import Workspace from '../components/Workspace';
 import RightBar from '../components/Rightbar';
+import Sidebar from '../components/Sidebar';
 
 function Dashboard() {
   const [sidebarData, setSidebarData] = useState({
