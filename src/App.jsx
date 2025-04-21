@@ -6,11 +6,9 @@ import './App.css';
 function App() {
   return (
     <div className="flex flex-col min-h-screen">
-      <Header />
       <main className="flex-grow">
         <Dashboard />
       </main>
-      <Footer />
     </div>
   );
 }

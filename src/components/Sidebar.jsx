@@ -22,63 +22,50 @@ function Sidebar({ setSidebarData }) {
   };
 
   return (
-    <div className="bg-slate-500 h-full flex flex-col items-center p-4">
-      <div className="text-2xl font-bold mb-4 text-white">Chatter Lab</div>
+    <div className=" h-full bg-blue-100 flex flex-col gap-16 items-center p-4">
+      <div className="text-2xl font-bold mb-4 text-black">Chatter Lab</div>
       <div className="w-full">
         <div className="mb-4">
-          <label className="block text-white">Select Operation: </label>
-          <select
-            value={operation}
-            onChange={(e) => setOperation(e.target.value)}
-            className="w-full p-2 rounded"
-          >
-            <option value="Turning">Turning</option>
-            <option value="Milling">Milling</option>
-            <option value="Drilling">Drilling</option>
-          </select>
+          <label className="block my-2 ">Selected Operation: </label>
+          <div className='text-lg bg-blue-200 border text-blue-500 p-2 font-bold '>
+            Turning
+          </div>
+
         </div>
         <div className="mb-4">
-          <label className="block text-white">Spindle Speed (RPM): </label>
+          <label className="block my-2">Spindle Speed (RPM): </label>
           <input
             type="number"
             value={spindleSpeed}
             onChange={(e) => setSpindleSpeed(e.target.value)}
-            className="w-full p-2 rounded"
+            className="w-full text-lg bg-blue-200 border outline-none text-blue-500 p-2 font-bold"
           />
         </div>
         <div className="mb-4">
-          <label className="block text-white">Depth of Cut (mm): </label>
+          <label className="block my-2">Depth of Cut (mm): </label>
           <input
             type="number"
             value={depthOfCut}
             onChange={(e) => setDepthOfCut(e.target.value)}
-            className="w-full p-2 rounded"
+            className="w-full text-lg bg-blue-200 border text-blue-500 p-2 font-bold"
           />
         </div>
         <div className="mb-4">
-          <label className="block text-white">Feed Rate (mm/rev): </label>
+          <label className="block my-2">Feed Rate (mm/rev): </label>
           <input
             type="number"
             value={feedRate}
             onChange={(e) => setFeedRate(e.target.value)}
-            className="w-full p-2 rounded"
+            className="w-full text-lg bg-blue-200 border text-blue-500 p-2 font-bold"
           />
         </div>
+      
         <div className="mb-4">
-          <label className="block text-white">Tool Overhang (mm): </label>
-          <input
-            type="number"
-            value={toolOverhang}
-            onChange={(e) => setToolOverhang(e.target.value)}
-            className="w-full p-2 rounded"
-          />
-        </div>
-        <div className="mb-4">
-          <label className="block text-white">Material: </label>
+          <label className="block my-2">Material: </label>
           <select
             value={material}
             onChange={(e) => setMaterial(e.target.value)}
-            className="w-full p-2 rounded"
+            className="w-full text-lg bg-blue-200 border text-blue-500 p-2 font-bold"
           >
             <option value="Steel">Steel</option>
             <option value="Aluminum">Aluminum</option>
@@ -86,11 +73,11 @@ function Sidebar({ setSidebarData }) {
           </select>
         </div>
         <div className="mb-4">
-          <label className="block text-white">Tool Type: </label>
+          <label className="block my-2">Tool Type: </label>
           <select
             value={toolType}
             onChange={(e) => setToolType(e.target.value)}
-            className="w-full p-2 rounded"
+            className="w-full text-lg bg-blue-200 border text-blue-500 p-2 font-bold"
           >
             <option value="Carbide">Carbide</option>
             <option value="HSS">HSS</option>
@@ -99,7 +86,7 @@ function Sidebar({ setSidebarData }) {
         </div>
         <button
           onClick={handleSimulate}
-          className="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600"
+          className="border bg-blue-400 border-blue-400 text-white cursor-pointer p-2 rounded-md w-full text-lg font-bold"
         >
           Simulate
         </button>
