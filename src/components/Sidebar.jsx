@@ -22,7 +22,7 @@ function Sidebar({ setSidebarData }) {
   };
 
   return (
-    <div className=" h-full bg-blue-100 flex flex-col gap-16 items-center p-4">
+    <div className=" h-full bg-blue-100 flex flex-col gap-10 items-center p-4">
       <div className="text-2xl font-bold mb-4 text-black">Chatter Lab</div>
       <div className="w-full">
         <div className="mb-4">
