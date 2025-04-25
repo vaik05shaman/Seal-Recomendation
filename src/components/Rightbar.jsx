@@ -129,9 +129,9 @@ function RightBar({ sidebarData }) {
   };
 
   return (
-    <div className="bg-blue-100 flex flex-col h-screen sm:h-screen md:h-screen lg:h-screen">
+    <div className="bg-blue-100 flex flex-col h-screen p-4 ">
       {/* Header */}
-      <div className="p-1 sm:p-2 flex-shrink-0">
+      <div className="p-2">
         <h2 className="text-xl sm:text-2xl font-bold text-black">Ask the AI</h2>
         <p className="text-base sm:text-lg text-gray-700">Ask about chatter, graphs, simulations, or anything else!</p>
       </div>
@@ -139,7 +139,7 @@ function RightBar({ sidebarData }) {
      
       <div
         ref={chatContainerRef}
-        className="flex-1 overflow-y-auto p-10 sm:p-6 md:p-8 lg:p-10 bg-white rounded-md border border-gray-200 mx-1 sm:mx-2 mb-1 sm:mb-2 shadow-lg"
+        className="flex-1 overflow-y-auto p-10 sm:p-6 md:p-3 bg-white  border border-gray-200 mx-1 sm:mx-2 mb-1 sm:mb-2 "
       >
         {chatHistory.length === 0 && (
           <div className="text-center text-gray-500 text-sm sm:text-base mt-20 sm:mt-16">
@@ -185,7 +185,7 @@ function RightBar({ sidebarData }) {
             <button
               key={index}
               onClick={() => handlePredefinedQuestion(question)}
-              className="border px-2 sm:px-3 py-1 sm:py-2 rounded-md text-sm sm:text-sm text-left hover:bg-blue-200 transition cursor-pointer min-h-[40px] sm:min-h-[44px]"
+              className="border px-2 w-fit  sm:px-3 py-1 sm:py-2 rounded-md text-sm sm:text-sm text-left hover:bg-blue-200 transition cursor-pointer min-h-[40px] sm:min-h-[44px]"
             >
               {question}
             </button>
