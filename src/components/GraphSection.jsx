@@ -5,6 +5,9 @@ import FFT from 'fft.js'; // Importing FFT.js for FFT calculations
 function GraphSection({ sidebarData }) {
   const { operation, spindleSpeed, depthOfCut, feedRate, toolOverhang, material, toolType } = sidebarData;
   const [activeGraph, setActiveGraph] = useState('vibration');
+
+
+  
   function generateVibrationData(spindleSpeed, depthOfCut) {
     let timeArray = [];
     let vibrationArray = [];

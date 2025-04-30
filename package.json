@@ -15,6 +15,7 @@
     "@tailwindcss/vite": "^4.1.4",
     "axios": "^1.8.4",
     "chart.js": "^4.4.9",
+    "chatter-analysis": "file:",
     "fft.js": "^4.0.4",
     "plotly.js": "^3.0.1",
     "react": "^19.0.0",
