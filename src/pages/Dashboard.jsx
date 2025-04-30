@@ -31,7 +31,7 @@ function Dashboard() {
 
   return (
     <div className="flex flex-col">
-   {  !isOnline&&  <div className="bg-red-600 text-white p-4 text-center">
+   {  !isOnline&&  <div className="bg-red-600 transition-all text-white p-4 text-center">
        {<p className="text-center font-semibold">{'You are offline'}</p>}
       </div>}
       <div className='flex w-full h-screen'>
