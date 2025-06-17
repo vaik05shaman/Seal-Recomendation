@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
 import Workspace from '../components/Workspace';
-import RightBar from '../components/RightBar';
+import RightBar from '../components/Rightbar';
 
 const recommendSeal = (input) => {
   const {
