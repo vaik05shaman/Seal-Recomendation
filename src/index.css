@@ -1,1 +1,6 @@
 @import "tailwindcss";
+
+
+.h-screen {
+  height: 100%;
+}

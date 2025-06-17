@@ -1,218 +1,77 @@
-import React, { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
+import React from 'react';
 
-function RightBar({ sidebarData }) {
-  const [prompt, setPrompt] = useState('');
-  const [chatHistory, setChatHistory] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const chatContainerRef = useRef(null);
+const generateAIResponse = (entry) => {
+  if (!entry) return 'No recommendation available. Submit parameters.';
 
+  const { fluidType, flushPlan, temperature, pressure, category, type, arrangement, materials, reliability, leakageRate, hazardous, fluidState, solids } = entry;
 
-  useEffect(() => {
-    if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
-    }
-  }, [chatHistory]);
+  let response = `<strong>AI Recommendation for ${fluidType} at ${temperature}°C and ${pressure} bar:</strong>`;
+  response += `<p class="mt-2">Optimized seal configuration per API 682:</p>`;
+  response += `<ul class="list-disc pl-3 mt-1 space-y-1 text-xs">`;
+  response += `<li><span class="font-semibold">Category</span>: ${category} (${category === 'Category 3' ? 'high safety' : category === 'Category 2' ? 'robust' : 'standard'})</li>`;
+  response += `<li><span class="font-semibold">Type</span>: ${type} (${type === 'Type A' ? 'general use' : type === 'Type B' ? 'gaseous fluids' : 'high temp'})</li>`;
+  response += `<li><span class="font-semibold">Arrangement</span>: ${arrangement} (${arrangement === 'Arrangement 3' ? 'zero emissions' : arrangement === 'Arrangement 2' ? 'low emissions' : 'single'})</li>`;
 
-  const generateContext = () => {
-    if (!sidebarData) return '';
-    const {
-      operation = 'Turning',
-      spindleSpeed = 2500,
-      depthOfCut = 2.5,
-      feedRate = 0.2,
-      toolOverhang = 40,
-      material = 'Steel',
-      toolType = 'Carbide',
-    } = sidebarData;
-
-    return `
-      The current machining parameters in the ChatterLab project are:
-      - Operation: ${operation}
-      - Spindle Speed: ${spindleSpeed} RPM
-      - Depth of Cut: ${depthOfCut} mm
-      - Feed Rate: ${feedRate} mm/rev
-      - Tool Overhang: ${toolOverhang} mm
-      - Material: ${material}
-      - Tool Type: ${toolType}
-
-      The project includes the following graphs:
-      - Vibration Over Time: Generated using a sinusoidal function (amplitude = sin(2 * π * spindleSpeed / 60 * t) * (1 + depthOfCut / 2)) with random noise, showing vibration amplitude over 2 seconds.
-      - Stability Lobe Diagram: Plots stable depths of cut vs. spindle speeds (500–6000 RPM), with depths calculated as 2 + sin(RPM/1000) * 1.5, forming sinusoidal lobes.
-      - Frequency Spectrum (FFT): Computes the FFT of the vibration signal, showing frequency components.
-      - Surface Finish: Plots surface roughness vs. feed rate (0.1–0.5 mm/rev), where roughness = 0.5 + 2 * feed + random(0.1).
-      - Chatter Risk Heatmap: Shows chatter risk for spindle speeds (500–10500 RPM) and depths (0.5–45 mm), where risk is high if depth > critical depth (a_critical = (2 * c * omega) / toolStiffness).
-
-      The simulation visualizes a rotating workpiece (speed based on spindleSpeed) and a cutting tool positioned according to depthOfCut.
-    `;
+  const flushPlanDescriptions = {
+    'Plan 11': 'discharge to seal chamber',
+    'Plan 13': 'seal chamber to suction',
+    'Plan 21': 'cooled flush from discharge',
+    'Plan 23': 'closed-loop cooling',
+    'Plan 31': 'cyclone separator for solids',
+    'Plan 32': 'external flush fluid',
+    'Plan 51': 'external quench cooling',
+    'Plan 52': 'unpressurized buffer fluid',
+    'Plan 53A': 'pressurized barrier with reservoir',
+    'Plan 53B': 'pressurized barrier with bladder',
+    'Plan 53C': 'pressurized barrier with piston',
+    'Plan 54': 'external pressurized barrier',
+    'Plan 62': 'external quench',
+    'Plan 75': 'condensate collection',
+    'Plan 76': 'vapor recovery',
   };
+  response += `<li><span class="font-semibold">Flush Plan</span>: ${flushPlan} (${flushPlanDescriptions[flushPlan] || 'custom'})</li>`;
+  response += `<li><span class="font-semibold">Materials</span>: ${materials} (${materials.includes('Silicon Carbide') ? 'high durability' : 'standard'})</li>`;
+  response += `<li><span class="font-semibold">Reliability</span>: ${reliability} | <span class="font-semibold">Leakage</span>: ${leakageRate}</li>`;
+  response += `</ul>`;
 
-  const isProjectRelated = (question) => {
-    const keywords = [
-      'graph', 'vibration', 'stability', 'lobe', 'fft', 'frequency', 'spectrum',
-      'surface', 'finish', 'chatter', 'risk', 'heatmap', 'simulation', 'spindle',
-      'speed', 'depth', 'cut', 'feed', 'rate', 'tool', 'overhang', 'material',
-      'shape', 'value', 'why', 'how'
-    ];
-    const regex = new RegExp(`\\b(${keywords.join('|')})\\b`, 'i');
-    const isRelated = regex.test(question);
-    console.log(`Question: "${question}" | Is Project-Related: ${isRelated}`);
-    return isRelated;
-  };
-
-  async function generateAns() {
-    if (!prompt.trim()) return; 
-
-    console.log(`User Input Prompt: "${prompt}"`);
-
-    setChatHistory((prev) => [...prev, { role: 'user', text: prompt }]);
-    setLoading(true);
-
-    try {
-      let fullPrompt;
-      if (isProjectRelated(prompt)) {
-        const context = generateContext();
-        fullPrompt = `
-          ${context}
-          
-          User question: ${prompt}
-          
-          You are an expert in mechanical engineering and the ChatterLab project. Provide a clear, concise answer related to the project. If the question is about graph shapes, values, or the simulation, explain based on the provided parameters and graph generation logic. For chatter-related questions, use accurate machining insights. Avoid speculative answers and focus on the project's context.
-        `;
-      } else {
-        fullPrompt = `
-          You are Gemni, a friendly and knowledgeable chatbot. Answer the user's question in a clear, engaging, and concise manner. Provide accurate information and maintain a conversational tone.
-          
-          User question: ${prompt}
-        `;
-      }
-
-      console.log(`Full Prompt Sent to API: "${fullPrompt}"`);
-
-      const response = await axios({
-        url: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=AIzaSyD_kZThDDKRanOvlo7rQHLtmBIwqIyRqwU',
-        method: 'post',
-        data: {
-          contents: [
-            {
-              parts: [{ text: fullPrompt }],
-            },
-          ],
-        },
-      });
-
-      const aiResponse = response.data.candidates[0].content.parts[0].text;
-      console.log(`API Response: "${aiResponse}"`);
-
-      setChatHistory((prev) => [...prev, { role: 'ai', text: aiResponse }]);
-    } catch (error) {
-      console.error('Error generating response:', error);
-      console.log(`Error Details: ${error.message}`);
-      setChatHistory((prev) => [
-        ...prev,
-        { role: 'ai', text: 'Sorry, something went wrong. Please try again.' },
-      ]);
-    } finally {
-      setLoading(false);
-      setPrompt(''); // Clear input
-    }
+  response += `<p class="mt-2 font-semibold">Reasoning:</p>`;
+  response += `<ul class="list-disc pl-3 mt-1 space-y-1 text-xs">`;
+  if (hazardous || fluidType?.toLowerCase().includes('toxic')) {
+    response += `<li>${flushPlan} for zero-emission sealing (hazardous).</li>`;
+  } else if (fluidType?.toLowerCase().includes('hydrocarbon') || entry.flashing) {
+    response += `<li>${flushPlan} for low-emission hydrocarbons.</li>`;
+  } else if (temperature > 260) {
+    response += `<li>${flushPlan} for high temperatures.</li>`;
+  } else if (fluidState === 'Gas') {
+    response += `<li>${flushPlan} for gaseous fluids.</li>`;
+  } else if (solids) {
+    response += `<li>${flushPlan} to prevent solids buildup.</li>`;
+  } else {
+    response += `<li>${flushPlan} for standard conditions.</li>`;
   }
+  response += `<li>Optimized for ${reliability.toLowerCase()} reliability and ${leakageRate.toLowerCase()} leakage.</li>`;
+  response += `</ul>`;
+  response += `<p class="mt-2 text-xs">API 682 compliant configuration.</p>`;
+  return response;
+};
 
-  const handlePredefinedQuestion = (question) => {
-    console.log(`Predefined Question Selected: "${question}"`);
-    setPrompt(question);
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    generateAns();
-  };
+function RightBar({ tableEntries }) {
+  const latestEntry = tableEntries?.length > 0 ? tableEntries[0] : null;
+  const aiResponse = generateAIResponse(latestEntry);
 
   return (
-    <div className="bg-blue-100 flex flex-col h-screen p-4 ">
-      {/* Header */}
-      <div className="p-2">
-        <h2 className="text-xl sm:text-2xl font-bold text-black">Ask the AI</h2>
-        <p className="text-base sm:text-lg text-gray-700">Ask about chatter, graphs, simulations, or anything else!</p>
-      </div>
-
-     
-      <div
-        ref={chatContainerRef}
-        className="flex-1 overflow-y-auto p-10 sm:p-6 md:p-3 bg-white  border border-gray-200 mx-1 sm:mx-2 mb-1 sm:mb-2 "
-      >
-        {chatHistory.length === 0 && (
-          <div className="text-center text-gray-500 text-sm sm:text-base mt-20 sm:mt-16">
-            Start the conversation by asking a question below!
-          </div>
+    <div className="h-screen w-[100%] bg-blue-50 p-3 border-l border-gray-200">
+      <h3 className="text-sm font-semibold text-gray-800 mb-2">AI Insights</h3>
+      <p className="text-xs text-gray-500 mb-2">AI-generated recommendations</p>
+      <div className="bg-white border border-gray-200 rounded-md shadow-sm p-3 text-xs h-[calc(100vh-100px)]">
+        {latestEntry ? (
+          <div className="prose prose-xs max-w-none text-gray-700" dangerouslySetInnerHTML={{ __html: aiResponse }} />
+        ) : (
+          <p className="text-center text-gray-600 text-xs">No insights yet. Submit inputs.</p>
         )}
-        {chatHistory.map((message, index) => (
-          <div
-            key={index}
-            className={`flex ${
-              message.role === 'user' ? 'justify-end' : 'justify-start'
-            } mb-6 sm:mb-4`}
-          >
-            <div
-              className={`max-w-[95%] p-3 sm:p-4 rounded-md shadow-md text-sm sm:text-sm md:text-sm lg:text-sm ${
-                message.role === 'user'
-                  ? 'bg-blue-400 text-white'
-                  : 'bg-gray-200 text-black'
-              }`}
-            >
-              {message.text}
-            </div>
-          </div>
-        ))}
-        {loading && (
-          <div className="flex justify-start mb-6 sm:mb-4">
-            <div className="bg-gray-200 p-3 sm:p-4 rounded-md shadow-md text-sm sm:text-sm md:text-sm lg:text-sm text-gray-500 italic">
-              Thinking...
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="p-1 sm:p-2 flex-shrink-0">
-        <div className="flex flex-col gap-1 sm:gap-2 mb-2 sm:mb-3">
-          {[
-            'Why does the vibration graph look like that?',
-            'Why is the stability lobe graph shaped like that?',
-            'What affects the chatter risk in the heatmap?',
-            'How does spindle speed affect the simulation?',
-            'What is chatter in machining?',
-          ].map((question, index) => (
-            <button
-              key={index}
-              onClick={() => handlePredefinedQuestion(question)}
-              className="border px-2 w-fit  sm:px-3 py-1 sm:py-2 rounded-md text-sm sm:text-sm text-left hover:bg-blue-200 transition cursor-pointer min-h-[40px] sm:min-h-[44px]"
-            >
-              {question}
-            </button>
-          ))}
-        </div>
-
-        <form onSubmit={handleSubmit} className="flex flex-col gap-1 sm:gap-2">
-          <input
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            type="text"
-            className="w-full border rounded-md p-1 sm:p-2 text-sm sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 min-h-[40px] sm:min-h-[44px]"
-            placeholder="Type your question..."
-          />
-          <button
-            type="submit"
-            disabled={loading || !prompt.trim()}
-            className={`border bg-blue-400 border-blue-400 text-white p-1 sm:p-2 rounded-md w-full text-sm sm:text-sm font-bold ${
-              loading || !prompt.trim() ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
-            } min-h-[40px] sm:min-h-[44px]`}
-          >
-            {loading ? 'Asking...' : 'Ask'}
-          </button>
-        </form>
       </div>
     </div>
   );
 }
 
-export default RightBar;
+export default React.memo(RightBar);

@@ -7,3 +7,7 @@ html, body, #root {
   padding: 0;
   height: 100%;
 }
+
+.h-screen {
+  height: 100%;
+}
