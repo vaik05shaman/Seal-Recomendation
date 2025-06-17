@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 const generateAIResponse = (entry) => {
   if (!entry) return 'No recommendation available. Submit parameters.';
@@ -56,20 +56,102 @@ const generateAIResponse = (entry) => {
 };
 
 function RightBar({ tableEntries }) {
+  const [isComparisonExpanded, setIsComparisonExpanded] = useState(false);
+
   const latestEntry = tableEntries?.length > 0 ? tableEntries[0] : null;
   const aiResponse = generateAIResponse(latestEntry);
 
+  const toggleComparison = () => {
+    setIsComparisonExpanded((prev) => !prev);
+  };
+
+  // AI vs. Real Data (Algo-Based) comparison explanations
+  const getComparisonExplanations = (entry) => {
+    if (!entry) return [];
+    const { category, type, arrangement, flushPlan, materials, reliability, leakageRate } = entry;
+    return [
+      {
+        field: 'Category',
+        ai: `AI chose ${category} based on learned patterns from operational data.`,
+        real: 'Real data uses fixed rules (e.g., Category 1 for non-hazardous).',
+      },
+      {
+        field: 'Type',
+        ai: `AI selected ${type} for ${type === 'Type A' ? 'versatility' : type === 'Type B' ? 'gas compatibility' : 'high temp'}.`,
+        real: 'Real data picks type by strict temperature/fluid thresholds.',
+      },
+      {
+        field: 'Arrangement',
+        ai: `AI picked ${arrangement} for ${arrangement === 'Arrangement 3' ? 'zero emissions' : 'optimal emissions'}.`,
+        real: 'Real data follows standard emission rules (e.g., single seal default).',
+      },
+      {
+        field: 'Flush Plan',
+        ai: `AI recommended ${flushPlan} for dynamic fluid conditions.`,
+        real: 'Real data uses predefined plans per fluid type.',
+      },
+      {
+        field: 'Materials',
+        ai: `AI chose ${materials} for durability under specific conditions.`,
+        real: 'Real data selects materials by fixed compatibility tables.',
+      },
+      {
+        field: 'Reliability',
+        ai: `AI optimized ${reliability} based on historical performance.`,
+        real: 'Real data sets reliability by standard pump specs.',
+      },
+      {
+        field: 'Leakage Rate',
+        ai: `AI targeted ${leakageRate} leakage with adaptive optimization.`,
+        real: 'Real data uses fixed leakage thresholds per seal type.',
+      },
+    ];
+  };
+
   return (
-    <div className="h-screen w-[100%] bg-blue-50 p-3 border-l border-gray-200">
+    <div className="h-screen w-full bg-blue-50 p-3 border-l border-gray-200">
       <h3 className="text-sm font-semibold text-gray-800 mb-2">AI Insights</h3>
-      <p className="text-xs text-gray-500 mb-2">AI-generated recommendations</p>
-      <div className="bg-white border border-gray-200 rounded-md shadow-sm p-3 text-xs h-[calc(100vh-100px)]">
+      <p className="text-xs text-gray-500 mb-4">AI-generated recommendations and analysis</p>
+
+      {/* AI Recommendation Section */}
+      <div className="bg-white border border-gray-200 rounded-md shadow-sm p-3 mb-4 text-xs">
         {latestEntry ? (
-          <div className="prose prose-xs max-w-none text-gray-700" dangerouslySetInnerHTML={{ __html: aiResponse }} />
+          <>
+            <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded-md mb-2">
+              Latest Recommendation
+            </span>
+            <div className="prose prose-xs max-w-none text-gray-700" dangerouslySetInnerHTML={{ __html: aiResponse }} />
+          </>
         ) : (
           <p className="text-center text-gray-600 text-xs">No insights yet. Submit inputs.</p>
         )}
       </div>
+
+      {/* AI vs. Real Data Comparison Section */}
+      {latestEntry && (
+        <div className="mb-4">
+          <button
+            className="flex justify-between w-full text-xs font-semibold text-gray-800 bg-gray-100 p-2 rounded-md hover:bg-gray-200"
+            onClick={toggleComparison}
+          >
+            <span>Why AI Differs from Real Data</span>
+            <span>{isComparisonExpanded ? '−' : '+'}</span>
+          </button>
+          {isComparisonExpanded && (
+            <div className="bg-white border border-gray-200 rounded-md shadow-sm p-3 mt-2 text-xs">
+              <p className="font-semibold mb-2">AI vs. Real Data (Algorithm-Based):</p>
+              <ul className="list-disc pl-3 space-y-2 text-xs text-gray-700">
+                {getComparisonExplanations(latestEntry).map((item, index) => (
+                  <li key={index}>
+                    <strong>{item.field}:</strong> {item.ai} <br />
+                    <span className="text-gray-600">Real Data: {item.real}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -20,7 +20,7 @@ function GraphSection({ tableEntries }) {
     const reliability = metricMap[entry.reliability] ?? 2;
     const performance = metricMap[entry.performance] ?? 2;
     const leakage = metricMap[entry.leakageRate] ?? 1;
-    const compliance = entry.complianceNotes?.length ? 3 : 1;
+   
 
     // Additional metrics influenced by parameters
     const temperature = parseFloat(entry.temperature) || 0;
@@ -30,14 +30,14 @@ function GraphSection({ tableEntries }) {
 
     return [
       {
-        x: ['Reliability', 'Performance', 'Leakage', 'Compliance', 'Temp Impact', 'Pressure Impact'],
-        y: [reliability, performance, leakage, compliance, tempImpact, pressureImpact],
+        x: ['Reliability', 'Performance', 'Leakage', 'Temp Impact', 'Pressure Impact'],
+        y: [reliability, performance, leakage, tempImpact, pressureImpact],
         type: 'bar',
         name: 'Recommended',
         marker: { color: '#3b82f6' },
       },
       {
-        x: ['Reliability', 'Performance', 'Leakage', 'Compliance', 'Temp Impact', 'Pressure Impact'],
+        x: ['Reliability', 'Performance', 'Leakage', 'Temp Impact', 'Pressure Impact'],
         y: [
           metricMap[entry.preferredReliability] ?? 2,
           metricMap[entry.preferredPerformance] ?? 2,
