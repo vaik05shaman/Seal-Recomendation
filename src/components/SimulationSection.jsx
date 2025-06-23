@@ -1,31 +1,32 @@
 import React, { useRef, useEffect, useState } from 'react';
 
-function RealisticPumpSimulation({ tableEntries }) {
+function SimulationSection({ tableEntries }) {
   const canvasRef = useRef(null);
   const [activeSeal, setActiveSeal] = useState('selected');
 
-  if (!tableEntries || tableEntries.length === 0) {
+  if (!tableEntries || !Array.isArray(tableEntries) || tableEntries.length === 0) {
     return (
-      <div className="flex items-center justify-center bg-gray-100 rounded-lg h-[500px] w-full">
-        <p className="text-gray-600 text-sm font-medium">No seal data available. Configure parameters first.</p>
+      <div className="flex items-center justify-center bg-gray-100 rounded-lg h-[500px] w-full text-xs text-gray-600">
+        No seal data available. Configure parameters first.
       </div>
     );
   }
 
-  const entry = tableEntries[0];
-  const metricMap = { High: 3, Moderate: 2, Low: 1, Zero: 0 };
-  const shaftSpeed = parseFloat(entry.shaftSpeed) || 1000;
+  // Use the latest entry for dynamic updates
+  const entry = tableEntries[tableEntries.length - 1];
+  const metricMap = { High: 3, Moderate: 2, Low: 1, Zero: 0, '0 ppm': 0, '1-5 ppm': 1, '2-8 ppm': 2, '5-10 ppm': 3 };
+  const shaftSpeed = parseFloat(entry.shaftSpeed) || 1800;
 
   const selected = {
     type: entry.preferredType || 'Type A',
-    leakage: metricMap[entry.preferredLeakage] || 1,
-    reliability: metricMap[entry.preferredReliability] || 2,
+    leakage: metricMap[entry.preferredLeakage] ?? 1,
+    reliability: metricMap[entry.preferredReliability] ?? 2,
     flushPlan: entry.preferredFlushPlan || 'Plan 11',
   };
   const recommended = {
     type: entry.type || 'Type A',
-    leakage: metricMap[entry.leakageRate] || 1,
-    reliability: metricMap[entry.reliability] || 2,
+    leakage: metricMap[entry.leakageRate] ?? 1,
+    reliability: metricMap[entry.reliability] ?? 2,
     flushPlan: entry.flushPlan || 'Plan 11',
   };
 
@@ -121,13 +122,6 @@ function RealisticPumpSimulation({ tableEntries }) {
           startY = components.seal.y;
           vx = -1.5 - Math.random();
           vy = Math.random()*0.2 - 0.1;
-          break;
-        case 'Plan 51':
-        case 'Plan 62':
-          startX = components.seal.x;
-          startY = components.seal.y + components.seal.diameter + 20;
-          vx = 1 + Math.random()*0.5;
-          vy = 0.5 + Math.random()*0.2;
           break;
         case 'Plan 52':
         case 'Plan 53A':
@@ -231,12 +225,13 @@ function RealisticPumpSimulation({ tableEntries }) {
           ctx.stroke();
           break;
         case 'Plan 32':
+        case 'Plan 54':
           ctx.moveTo(components.seal.x + components.seal.width + 37.5, components.seal.y);
           ctx.lineTo(components.seal.x, components.seal.y);
-          break;
-        case 'Plan 51':
-          ctx.moveTo(components.seal.x, components.seal.y + components.seal.diameter + 15);
-          ctx.lineTo(components.seal.x + 37.5, components.seal.y + components.seal.diameter + 37.5);
+          if (flushPlan === 'Plan 54') {
+            ctx.rect(components.seal.x + components.seal.width, components.seal.y - 15, 22.5, 22.5);
+            ctx.stroke();
+          }
           break;
         case 'Plan 52':
         case 'Plan 53A':
@@ -247,16 +242,6 @@ function RealisticPumpSimulation({ tableEntries }) {
           ctx.lineTo(components.seal.x + 37.5, components.seal.y - 75);
           ctx.rect(components.seal.x + 22.5, components.seal.y - 75, 30, 30);
           ctx.stroke();
-          break;
-        case 'Plan 54':
-          ctx.moveTo(components.seal.x + components.seal.width + 37.5, components.seal.y);
-          ctx.lineTo(components.seal.x, components.seal.y);
-          ctx.rect(components.seal.x + components.seal.width, components.seal.y - 15, 22.5, 22.5);
-          ctx.stroke();
-          break;
-        case 'Plan 62':
-          ctx.moveTo(components.seal.x, components.seal.y + components.seal.diameter + 15);
-          ctx.lineTo(components.seal.x + 37.5, components.seal.y + components.seal.diameter + 37.5);
           break;
         case 'Plan 75':
         case 'Plan 76':
@@ -553,7 +538,7 @@ function RealisticPumpSimulation({ tableEntries }) {
   }, [tableEntries, activeSeal, shaftSpeed]);
 
   return (
-    <div className="flex flex-col items-center bg-gray-100 rounded-xl p-4 w-full max-w-4xl mx-auto">
+    <div className="flex flex-col items-center bg-gray-100 rounded-lg p-6 w-full max-w-4xl mx-auto shadow-sm border border-gray-200">
       <div className="flex justify-between w-full mb-4 gap-4">
         <div className="flex gap-4">
           <button
@@ -576,21 +561,22 @@ function RealisticPumpSimulation({ tableEntries }) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 w-full">
-        <div className="bg-white p-3 rounded-xl shadow-sm">
+        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
           <h3 className="font-bold text-sm text-gray-800 mb-2">Seal Specifications</h3>
-          <div className="space-y-1 text-xs">
+          <div className="space-y-1 text-xs text-gray-700">
             <p><span className="font-medium">Type:</span> {currentSeal.type}</p>
             <p><span className="font-medium">Flush Plan:</span> {currentSeal.flushPlan}</p>
             <p><span className="font-medium">Leakage:</span> {['Zero', 'Low', 'Moderate', 'High'][currentSeal.leakage]}</p>
-            <p><span className="font-medium">Reliability:</span> {['High', 'Moderate', 'Low'][currentSeal.reliability]}</p>
+            <p><span className="font-medium">Reliability:</span> {['Zero', 'Low', 'Moderate', 'High'][currentSeal.reliability]}</p>
           </div>
         </div>
-        <div className="bg-white p-3 rounded-xl shadow-sm">
+        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
           <h3 className="font-bold text-sm text-gray-800 mb-2">Operating Conditions</h3>
-          <div className="space-y-1 text-xs">
-            <p><span className="font-medium">Pressure:</span> {entry.pressure || 'N/A'} bar</p>
+          <div className="space-y-1 text-xs text-gray-700">
+            <p><span className="font-medium">Pressure:</span> {entry.suctionPressure || 'N/A'} bar</p>
             <p><span className="font-medium">Temperature:</span> {entry.temperature || 'N/A'} °C</p>
             <p><span className="font-medium">Speed:</span> {shaftSpeed} RPM</p>
+            <p><span className="font-medium">Fluid:</span> {entry.fluidType || 'N/A'}</p>
           </div>
         </div>
       </div>
@@ -599,7 +585,7 @@ function RealisticPumpSimulation({ tableEntries }) {
         ref={canvasRef}
         width={800}
         height={500}
-        className="border border-gray-300 rounded-xl shadow-lg bg-white w-full"
+        className="border border-gray-200 rounded-lg shadow-sm bg-white w-full"
       />
 
       <div className="mt-4 text-center">
@@ -612,4 +598,4 @@ function RealisticPumpSimulation({ tableEntries }) {
   );
 }
 
-export default RealisticPumpSimulation;
+export default SimulationSection;

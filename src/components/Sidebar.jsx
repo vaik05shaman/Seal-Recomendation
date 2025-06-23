@@ -1,35 +1,94 @@
 import React, { useState, useEffect } from 'react';
 
-// Mock vapor pressure lookup (in bar) based on fluid type and temperature
-const getVaporPressure = (fluidType, temperature) => {
-  const vaporPressureTable = {
-    Water: { 20: 0.0234, 100: 1.013 }, // Example values in bar
-    Hydrocarbon: { 20: 0.5, 100: 2.0 },
-  };
-  return vaporPressureTable[fluidType]?.[temperature] || 0.1; // Default fallback
+// Fluid properties database for common fluids (density in kg/m³, Antoine constants for vapor pressure in Pa, viscosity in cP)
+const fluidProperties = {
+  Water: {
+    density: (temp) => 1000 - 0.0178 * (temp - 4) ** 2,
+    antoine: { A: 8.07131, B: 1730.63, C: 233.426 }, // log10(P) = A - B/(T+C), P in mmHg
+    viscosity: (temp) => Math.exp(-24.71 + 4209/(temp + 273.15) + 0.04527 * (temp + 273.15) - 3.376e-5 * (temp + 273.15) ** 2),
+  },
+  LightOil: {
+    density: (temp) => 850 - 0.6 * temp,
+    antoine: { A: 7.5, B: 1500, C: 200 },
+    viscosity: (temp) => 10 ** (2.5 - 0.02 * temp),
+  },
+  HeavyOil: {
+    density: (temp) => 900 - 0.65 * temp,
+    antoine: { A: 7.7, B: 1600, C: 210 },
+    viscosity: (temp) => 10 ** (3.0 - 0.015 * temp),
+  },
+  Kerosene: {
+    density: (temp) => 820 - 0.7 * temp,
+    antoine: { A: 7.4, B: 1450, C: 190 },
+    viscosity: (temp) => 2.5 * Math.exp(-0.01 * temp),
+  },
+  Gasoline: {
+    density: (temp) => 740 - 0.8 * temp,
+    antoine: { A: 7.3, B: 1400, C: 180 },
+    viscosity: (temp) => 0.6 * Math.exp(-0.008 * temp),
+  },
 };
 
-// Mock NPSHr lookup (in meters) based on pump type, shaft speed, and flow rate
+// Default fluid properties for unknown fluids
+const defaultFluidProperties = {
+  density: (temp) => 800 - 0.7 * temp, // Generic hydrocarbon approximation
+  antoine: { A: 7.5, B: 1500, C: 200 },
+  viscosity: (temp) => 1.0 * Math.exp(-0.01 * temp), // Generic viscosity
+};
+
+// Calculate vapor pressure using Antoine equation (returns bar)
+const getVaporPressure = (fluidType, temperature, userDensity, userViscosity) => {
+  const props = fluidProperties[fluidType] || defaultFluidProperties;
+  const { A, B, C } = props.antoine;
+  const tempK = temperature + 273.15;
+  const logPmmHg = A - B / (temperature + C); // Pressure in mmHg
+  const pPa = Math.pow(10, logPmmHg) * 133.322; // Convert mmHg to Pa
+  return pPa / 100000; // Convert Pa to bar
+};
+
+// Calculate NPSHr based on pump type, speed, and flow (API 610 approximation)
 const getNPSHr = (pumpType, shaftSpeed, flowRate) => {
-  const baseNPSHr = pumpType === 'Centrifugal' ? (shaftSpeed > 3000 ? 4 : 3) : 3;
-  return baseNPSHr + (flowRate > 100 ? 0.5 : 0); // Adjust based on flow rate (simplified)
+  if (!pumpType || !shaftSpeed || !flowRate) return 3.0;
+  const nss = pumpType === 'Centrifugal' ? 9000 : 8000; // Suction specific speed (US units)
+  const qGpm = flowRate * 264.172 / 3600; // Convert m³/h to gpm
+  const nRpm = shaftSpeed;
+  const npshrFt = Math.pow((nRpm * Math.sqrt(qGpm) / nss), 4/3); // NPSHr in feet
+  return npshrFt * 0.3048; // Convert to meters
 };
 
-// Mock friction loss calculation (in meters) based on pipe diameter and flow rate
-const getFrictionLoss = (pipeDiameter, flowRate) => {
-  if (!pipeDiameter || !flowRate) return 0.5; // Default fallback
-  return (flowRate / 100) * (10 / pipeDiameter); // Simplified Darcy-Weisbach approximation
+// Calculate friction loss using Darcy-Weisbach equation (returns ROS returns meters
+const getFrictionLoss = (pipeDiameter, flowRate, fluidType, temperature, userDensity, userViscosity) => {
+  if (!pipeDiameter || !flowRate) return 0.5;
+  const d = pipeDiameter / 1000; // Convert mm to m
+  const a = Math.PI * (d / 2) ** 2; // Pipe cross-sectional area (m²)
+  const v = (flowRate / 3600) / a; // Velocity (m/s)
+  const density = userDensity || (fluidProperties[fluidType] || defaultFluidProperties).density(temperature);
+  const viscosity = userViscosity || (fluidProperties[fluidType] || defaultFluidProperties).viscosity(temperature);
+  const re = (density * v * d) / (viscosity / 1000); // Reynolds number
+  const f = re > 2000 ? 0.025 : 64 / re; // Friction factor (laminar or turbulent)
+  const l = 10; // Assume 10m pipe length
+  const g = 9.81; // Gravity (m/s²)
+  return (f * l * v ** 2) / (2 * d * g); // Head loss in meters
 };
 
-// Mock cavitation mitigation suggestions based on risk
+// Cavitation mitigation suggestions
 const getMitigationSuggestions = (cavitationRisk, sealData) => {
   if (cavitationRisk !== 'High risk of cavitation') return [];
-  const suggestions = [];
-  if (sealData.fluidType === 'Hydrocarbon' || sealData.flashing) {
-    suggestions.push('Use dual seals with Plan 53A/B/C for better pressure stability.');
+  const suggestions = [
+    'Increase suction pipe diameter to reduce friction losses.',
+    'Lower pump speed to reduce NPSHr.',
+    'Install a booster pump to increase suction pressure.',
+    'Optimize suction line design to minimize bends and restrictions.',
+  ];
+  if (sealData.fluidType.toLowerCase().includes('oil') || sealData.fluidType.toLowerCase().includes('hydrocarbon') || sealData.flashing) {
+    suggestions.push('Use dual seals with API Plan 53B for hydrocarbon compatibility.');
   }
-  suggestions.push('Select Silicon Carbide vs. Silicon Carbide for enhanced durability.');
-  suggestions.push('Increase suction pressure or reduce pump speed to lower cavitation risk.');
+  if (sealData.viscosity > 10) {
+    suggestions.push('Select seal materials resistant to high viscosity fluids (e.g., Silicon Carbide).');
+  }
+  if (sealData.hazardous) {
+    suggestions.push('Implement API Plan 54 with external pressurized barrier fluid for safety.');
+  }
   return suggestions;
 };
 
@@ -37,37 +96,63 @@ function Sidebar({ sealData = {}, setSealData, onSubmit, onReset, onUpdatePrefer
   const [npshResults, setNpshResults] = useState(null);
   const [errors, setErrors] = useState({});
 
+  // Load saved data from localStorage on mount
+  useEffect(() => {
+    const savedData = localStorage.getItem('sealRecommenderData');
+    if (savedData) {
+      setSealData(JSON.parse(savedData));
+    }
+  }, [setSealData]);
+
+  // Save data to localStorage whenever sealData changes
+  useEffect(() => {
+    localStorage.setItem('sealRecommenderData', JSON.stringify(sealData));
+    const results = calculateNPSH();
+    setNpshResults(results);
+  }, [sealData]);
+
   const validateInputs = () => {
     const newErrors = {};
     if (!sealData.fluidType) newErrors.fluidType = 'Fluid Type is required';
-    if (!sealData.temperature || isNaN(sealData.temperature)) newErrors.temperature = 'Valid Temperature is required';
-    if (!sealData.suctionPressure || isNaN(sealData.suctionPressure)) newErrors.suctionPressure = 'Valid Suction Pressure is required';
+    if (!sealData.temperature || isNaN(sealData.temperature) || sealData.temperature < -50 || sealData.temperature > 300) {
+      newErrors.temperature = 'Valid Temperature (-50 to 300°C) is required';
+    }
+    if (!sealData.suctionPressure || isNaN(sealData.suctionPressure) || sealData.suctionPressure < 0) {
+      newErrors.suctionPressure = 'Valid Suction Pressure (≥ 0 bar) is required';
+    }
     if (!sealData.pumpType) newErrors.pumpType = 'Pump Type is required';
-    if (!sealData.shaftSpeed || isNaN(sealData.shaftSpeed)) newErrors.shaftSpeed = 'Valid Shaft Speed is required';
-    if (!sealData.flowRate || isNaN(sealData.flowRate)) newErrors.flowRate = 'Valid Flow Rate is required';
-    if (!sealData.pipeDiameter || isNaN(sealData.pipeDiameter)) newErrors.pipeDiameter = 'Valid Pipe Diameter is required';
+    if (!sealData.shaftSpeed || isNaN(sealData.shaftSpeed) || sealData.shaftSpeed < 0 || sealData.shaftSpeed > 10000) {
+      newErrors.shaftSpeed = 'Valid Shaft Speed (0-10000 RPM) is required';
+    }
+    if (!sealData.flowRate || isNaN(sealData.flowRate) || sealData.flowRate < 0) {
+      newErrors.flowRate = 'Valid Flow Rate (≥ 0 m³/h) is required';
+    }
+    if (!sealData.pipeDiameter || isNaN(sealData.pipeDiameter) || sealData.pipeDiameter < 10) {
+      newErrors.pipeDiameter = 'Valid Pipe Diameter (≥ 10 mm) is required';
+    }
+    if (sealData.userDensity && (isNaN(sealData.userDensity) || sealData.userDensity < 100)) {
+      newErrors.userDensity = 'Valid Density (≥ 100 kg/m³) is required';
+    }
+    if (sealData.userViscosity && (isNaN(sealData.userViscosity) || sealData.userViscosity < 0)) {
+      newErrors.userViscosity = 'Valid Viscosity (≥ 0 cP) is required';
+    }
     return newErrors;
   };
 
   const calculateNPSH = () => {
-    const { fluidType, temperature, suctionPressure, pumpType, shaftSpeed, flowRate, pipeDiameter } = sealData;
+    const { fluidType, temperature, suctionPressure, pumpType, shaftSpeed, flowRate, pipeDiameter, userDensity, userViscosity } = sealData;
     if (!fluidType || !temperature || !suctionPressure || !pumpType || !shaftSpeed || !flowRate || !pipeDiameter) {
       return null;
     }
-    const vaporPressure = getVaporPressure(fluidType, parseFloat(temperature)); // bar
-    const fluidDensity = fluidType === 'Water' ? 1000 : 800; // kg/m³ (simplified)
-    const pressureHead = (parseFloat(suctionPressure) * 100000) / (fluidDensity * 9.81); // Convert bar to m
-    const frictionLoss = getFrictionLoss(parseFloat(pipeDiameter), parseFloat(flowRate)); // meters
-    const NPSHa = pressureHead - (vaporPressure * 100000) / (fluidDensity * 9.81) - frictionLoss;
+    const density = userDensity || (fluidProperties[fluidType] || defaultFluidProperties).density(parseFloat(temperature));
+    const vaporPressure = getVaporPressure(fluidType, parseFloat(temperature), userDensity, userViscosity);
+    const pressureHead = (parseFloat(suctionPressure) * 100000) / (density * 9.81); // Convert bar to m
+    const frictionLoss = getFrictionLoss(parseFloat(pipeDiameter), parseFloat(flowRate), fluidType, parseFloat(temperature), userDensity, userViscosity);
+    const NPSHa = pressureHead - (vaporPressure * 100000) / (density * 9.81) - frictionLoss;
     const NPSHr = getNPSHr(pumpType, parseFloat(shaftSpeed), parseFloat(flowRate));
     const cavitationRisk = NPSHa < NPSHr ? 'High risk of cavitation' : 'Low risk of cavitation';
     return { NPSHa: NPSHa.toFixed(2), NPSHr: NPSHr.toFixed(2), cavitationRisk };
   };
-
-  useEffect(() => {
-    const results = calculateNPSH();
-    setNpshResults(results);
-  }, [sealData]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -92,8 +177,10 @@ function Sidebar({ sealData = {}, setSealData, onSubmit, onReset, onUpdatePrefer
   };
 
   const handleReset = () => {
+    setSealData({});
     setNpshResults(null);
     setErrors({});
+    localStorage.removeItem('sealRecommenderData');
     if (onReset) onReset();
   };
 
@@ -117,10 +204,36 @@ function Sidebar({ sealData = {}, setSealData, onSubmit, onReset, onUpdatePrefer
                 name="fluidType"
                 value={sealData.fluidType || ''}
                 onChange={handleChange}
-                placeholder="e.g., Hydrocarbon, Water"
+                placeholder="e.g., Water, Oil, Hydrocarbon"
                 className="w-full p-1.5 border border-gray-300 rounded-md bg-white text-xs text-gray-800 focus:ring-1 focus:ring-blue-500"
               />
               {errors.fluidType && <p className="text-xs text-red-600 mt-1">{errors.fluidType}</p>}
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Density (kg/m³):</label>
+              <input
+                type="number"
+                name="userDensity"
+                value={sealData.userDensity || ''}
+                onChange={handleChange}
+                placeholder="Enter density or leave blank for default"
+                className="w-full p-1.5 border border-gray-300 rounded-md bg-white text-xs text-gray-800 focus:ring-1 focus:ring-blue-500"
+                step="0.1"
+              />
+              {errors.userDensity && <p className="text-xs text-red-600 mt-1">{errors.userDensity}</p>}
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Viscosity (cP):</label>
+              <input
+                type="number"
+                name="userViscosity"
+                value={sealData.userViscosity || ''}
+                onChange={handleChange}
+                placeholder="Enter viscosity or leave blank for default"
+                className="w-full p-1.5 border border-gray-300 rounded-md bg-white text-xs text-gray-800 focus:ring-1 focus:ring-blue-500"
+                step="0.01"
+              />
+              {errors.userViscosity && <p className="text-xs text-red-600 mt-1">{errors.userViscosity}</p>}
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">Fluid State:</label>
@@ -165,16 +278,6 @@ function Sidebar({ sealData = {}, setSealData, onSubmit, onReset, onUpdatePrefer
               />
               <label className="ml-2 text-xs text-gray-700">Contains Solids</label>
             </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Viscosity (cP):</label>
-              <input
-                type="number"
-                name="viscosity"
-                value={sealData.viscosity || ''}
-                onChange={handleChange}
-                className="w-full p-1.5 border border-gray-300 rounded-md bg-white text-xs text-gray-800 focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
           </div>
         </div>
         <div>
@@ -188,6 +291,7 @@ function Sidebar({ sealData = {}, setSealData, onSubmit, onReset, onUpdatePrefer
                 value={sealData.temperature || ''}
                 onChange={handleChange}
                 className="w-full p-1.5 border border-gray-300 rounded-md bg-white text-xs text-gray-800 focus:ring-1 focus:ring-blue-500"
+                step="0.1"
               />
               {errors.temperature && <p className="text-xs text-red-600 mt-1">{errors.temperature}</p>}
             </div>
@@ -199,6 +303,7 @@ function Sidebar({ sealData = {}, setSealData, onSubmit, onReset, onUpdatePrefer
                 value={sealData.suctionPressure || ''}
                 onChange={handleChange}
                 className="w-full p-1.5 border border-gray-300 rounded-md bg-white text-xs text-gray-800 focus:ring-1 focus:ring-blue-500"
+                step="0.01"
               />
               {errors.suctionPressure && <p className="text-xs text-red-600 mt-1">{errors.suctionPressure}</p>}
             </div>
@@ -210,6 +315,7 @@ function Sidebar({ sealData = {}, setSealData, onSubmit, onReset, onUpdatePrefer
                 value={sealData.flowRate || ''}
                 onChange={handleChange}
                 className="w-full p-1.5 border border-gray-300 rounded-md bg-white text-xs text-gray-800 focus:ring-1 focus:ring-blue-500"
+                step="0.1"
               />
               {errors.flowRate && <p className="text-xs text-red-600 mt-1">{errors.flowRate}</p>}
             </div>
@@ -221,6 +327,7 @@ function Sidebar({ sealData = {}, setSealData, onSubmit, onReset, onUpdatePrefer
                 value={sealData.pipeDiameter || ''}
                 onChange={handleChange}
                 className="w-full p-1.5 border border-gray-300 rounded-md bg-white text-xs text-gray-800 focus:ring-1 focus:ring-blue-500"
+                step="0.1"
               />
               {errors.pipeDiameter && <p className="text-xs text-red-600 mt-1">{errors.pipeDiameter}</p>}
             </div>
@@ -232,6 +339,7 @@ function Sidebar({ sealData = {}, setSealData, onSubmit, onReset, onUpdatePrefer
                 value={sealData.shaftSpeed || ''}
                 onChange={handleChange}
                 className="w-full p-1.5 border border-gray-300 rounded-md bg-white text-xs text-gray-800 focus:ring-1 focus:ring-blue-500"
+                step="1"
               />
               {errors.shaftSpeed && <p className="text-xs text-red-600 mt-1">{errors.shaftSpeed}</p>}
             </div>
@@ -250,6 +358,7 @@ function Sidebar({ sealData = {}, setSealData, onSubmit, onReset, onUpdatePrefer
               >
                 <option value="">Select</option>
                 <option value="Centrifugal">Centrifugal</option>
+      
               </select>
               {errors.pumpType && <p className="text-xs text-red-600 mt-1">{errors.pumpType}</p>}
             </div>
@@ -261,6 +370,7 @@ function Sidebar({ sealData = {}, setSealData, onSubmit, onReset, onUpdatePrefer
                 value={sealData.shaftDiameter || ''}
                 onChange={handleChange}
                 className="w-full p-1.5 border border-gray-300 rounded-md bg-white text-xs text-gray-800 focus:ring-1 focus:ring-blue-500"
+                step="0.1"
               />
             </div>
           </div>
@@ -330,6 +440,7 @@ function Sidebar({ sealData = {}, setSealData, onSubmit, onReset, onUpdatePrefer
               >
                 <option value="Carbon vs. Silicon Carbide">Carbon vs. Silicon Carbide</option>
                 <option value="Silicon Carbide vs. Silicon Carbide">Silicon Carbide vs. Silicon Carbide</option>
+                <option value="Tungsten Carbide vs. Tungsten Carbide">Tungsten Carbide vs. Tungsten Carbide</option>
               </select>
             </div>
           </div>
@@ -366,19 +477,18 @@ function Sidebar({ sealData = {}, setSealData, onSubmit, onReset, onUpdatePrefer
             Update Preferences
           </button>
         </div>
-        {/* Real-Time NPSH Preview */}
         {npshResults && (
           <div className="mt-4 p-3 bg-white border border-gray-300 rounded-md">
-            <h2 className="text-sm font-semibold text-gray-800 mb-2">NPSH Preview</h2>
+            <h2 className="text-sm font-semibold text-gray-800 mb-2">NPSH Analysis</h2>
             <div className="space-y-3">
               <div className="p-2 bg-gray-100 border border-gray-200 rounded-md">
                 <p className="text-xs font-medium text-gray-700">
-                  <strong>NPSH Definition:</strong> Pressure margin at pump inlet to prevent cavitation.
+                  <strong>NPSH Definition:</strong> Net Positive Suction Head, the pressure margin at pump inlet to prevent cavitation.
                 </p>
               </div>
               <div className="p-2 bg-gray-100 border border-gray-200 rounded-md">
                 <p className="text-xs font-medium text-gray-700">
-                  <strong>Cavitation Definition:</strong> Formation and collapse of vapor bubbles due to low pressure.
+                  <strong>Cavitation Definition:</strong> Formation and collapse of vapor bubbles due to low pressure, causing pump damage.
                 </p>
               </div>
               <div>
@@ -404,7 +514,6 @@ function Sidebar({ sealData = {}, setSealData, onSubmit, onReset, onUpdatePrefer
             </div>
           </div>
         )}
-        {/* Cavitation Mitigation Suggestions */}
         {npshResults?.cavitationRisk === 'High risk of cavitation' && (
           <div className="mt-4 p-3 bg-yellow-100 border border-yellow-300 rounded-md">
             <h2 className="text-sm font-semibold text-gray-800 mb-2">Cavitation Mitigation Suggestions</h2>

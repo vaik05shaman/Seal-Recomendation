@@ -2,31 +2,36 @@ import React, { useMemo } from 'react';
 import Plot from 'react-plotly.js';
 
 function GraphSection({ tableEntries }) {
-  // Return null if no valid data
+  // Return placeholder if no valid data
   if (!tableEntries || !Array.isArray(tableEntries) || tableEntries.length === 0) {
     return (
-      <div className="bg-white border border-gray-200 rounded-md shadow-sm p-3 mb-5 text-xs text-gray-600">
+      <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4 mb-6 text-xs text-gray-600">
         No data available for graph.
       </div>
     );
   }
 
-  const entry = tableEntries[0];
-  const metricMap = { Zero: 0, Low: 1, Moderate: 2, High: 3 };
+  // Use the latest entry for dynamic updates
+  const entry = tableEntries[tableEntries.length - 1];
+  const metricMap = { Zero: 0, Low: 1, Moderate: 2, High: 3, '0 ppm': 0, '1-5 ppm': 1, '2-8 ppm': 2, '5-10 ppm': 3 };
 
-  // Compute data dynamically based on entry
+  // Compute data dynamically with proper error handling
   const data = useMemo(() => {
-    // Base metrics
-    const reliability = metricMap[entry.reliability] ?? 2;
-    const performance = metricMap[entry.performance] ?? 2;
-    const leakage = metricMap[entry.leakageRate] ?? 1;
-   
+    console.log('GraphSection: Computing data for entry:', entry);
 
-    // Additional metrics influenced by parameters
+    // Recommended metrics with fallback values
+    const reliability = metricMap[entry.reliability] ?? 2;
+    const performance = metricMap[entry.performance] ?? reliability; // Fallback to reliability
+    const leakage = metricMap[entry.leakageRate] ?? 1;
     const temperature = parseFloat(entry.temperature) || 0;
-    const pressure = parseFloat(entry.pressure) || 0;
+    const pressure = parseFloat(entry.suctionPressure) || 0;
     const tempImpact = temperature > 260 ? 3 : temperature > 150 ? 2 : 1;
     const pressureImpact = pressure > 50 ? 3 : pressure > 20 ? 2 : 1;
+
+    // Preferred metrics with fallback values
+    const preferredReliability = metricMap[entry.preferredReliability] ?? reliability;
+    const preferredPerformance = metricMap[entry.preferredPerformance] ?? performance;
+    const preferredLeakage = metricMap[entry.preferredLeakage] ?? leakage;
 
     return [
       {
@@ -38,14 +43,7 @@ function GraphSection({ tableEntries }) {
       },
       {
         x: ['Reliability', 'Performance', 'Leakage', 'Temp Impact', 'Pressure Impact'],
-        y: [
-          metricMap[entry.preferredReliability] ?? 2,
-          metricMap[entry.preferredPerformance] ?? 2,
-          metricMap[entry.preferredLeakage] ?? 1,
-          entry.complianceNotes?.length ? 3 : 1,
-          tempImpact,
-          pressureImpact,
-        ],
+        y: [preferredReliability, preferredPerformance, preferredLeakage, tempImpact, pressureImpact],
         type: 'bar',
         name: 'Preferred',
         marker: { color: '#22c55e' },
@@ -65,17 +63,17 @@ function GraphSection({ tableEntries }) {
       tickfont: { size: 10 },
     },
     margin: { t: 40, b: 60, l: 60, r: 20 },
-    height: 250,
+    height: 300,
     font: { size: 10 },
     showlegend: true,
     legend: { x: 1, y: 1, xanchor: 'right', font: { size: 10 } },
   };
 
   return (
-    <div className="bg-white border border-gray-200 rounded-md shadow-sm p-3 mb-5">
-      <Plot data={data} layout={layout} style={{ width: '100%' }} />
+    <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4 mb-6">
+      <Plot data={data} layout={layout} style={{ width: '100%' }} config={{ responsive: true }} />
     </div>
   );
 }
 
-export default React.memo(GraphSection);
+export default GraphSection;
