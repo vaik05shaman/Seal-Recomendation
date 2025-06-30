@@ -475,7 +475,7 @@ function Workspace({ tableEntries }) {
           <table className="w-full text-sm text-left text-gray-700">
             <thead className="text-xs text-gray-700 uppercase bg-blue-50">
               <tr>
-                {['Parameter', 'Preferred', 'Recommended', 'Reason', 'API 682 Reference'].map((header) => (
+                {['Parameter', 'Current', 'Recommended', 'Reason', 'API 682 Reference'].map((header) => (
                   <th key={header} className="px-4 py-3">{header}</th>
                 ))}
               </tr>

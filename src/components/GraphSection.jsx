@@ -45,7 +45,7 @@ function GraphSection({ tableEntries }) {
         x: ['Reliability', 'Performance', 'Leakage', 'Temp Impact', 'Pressure Impact'],
         y: [preferredReliability, preferredPerformance, preferredLeakage, tempImpact, pressureImpact],
         type: 'bar',
-        name: 'Preferred',
+        name: 'Current',
         marker: { color: '#22c55e' },
       },
     ];

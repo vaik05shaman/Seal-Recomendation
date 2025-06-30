@@ -376,7 +376,7 @@ function Sidebar({ sealData = {}, setSealData, onSubmit, onReset, onUpdatePrefer
           </div>
         </div>
         <div>
-          <h2 className="text-sm font-semibold text-gray-800 mb-2">Seal Preferences</h2>
+          <h2 className="text-sm font-semibold text-gray-800 mb-2">Current Seal</h2>
           <div className="space-y-3">
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">Seal Category:</label>
